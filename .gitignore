@@ -1,0 +1,23 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.log
+instance/
+
+# Frontend
+node_modules/
+dist/
+
+# Editors
+.vscode/
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db.gitignore:7:.venv/	"backend/.venv@\n# Backend virtual environment\nbackend/.venv/\n# Python cache\nbackend/__pycache__/\nbackend/**/*.pyc\n# Frontend dependencies and builds\nfrontend/node_modules/\nfrontend/dist/\n@"
