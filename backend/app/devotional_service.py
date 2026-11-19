@@ -2,6 +2,8 @@
 import os
 import json
 import logging
+import re
+import html
 from urllib.request import Request, urlopen
 from urllib.parse import quote
 from datetime import datetime, date
@@ -14,6 +16,23 @@ from . import db
 from .models import Devotional
 
 logger = logging.getLogger(__name__)
+
+def clean_text(value):
+    """Normalize whitespace and clean generated devotional text."""
+    if not isinstance(value, str):
+        return value
+
+    value = html.unescape(value)
+    value = value.replace("\u00a0", " ")
+    value = value.replace("\u200b", "")
+    value = value.replace("\ufeff", "")
+
+    # Normalize spaces and line breaks.
+    value = re.sub(r"[ \t]+", " ", value)
+    value = re.sub(r" *\n *", "\n", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+
+    return value.strip()
 
 TIMEZONE = ZoneInfo(
     os.getenv("TIMEZONE", "Africa/Lagos")
@@ -87,6 +106,14 @@ IMPORTANT:
   reference and mark the verse for verified-text insertion.
 - Do not include markdown fences.
 - Return valid JSON only.
+
+TEXT FORMATTING RULES:
+- Use proper spaces between every word.
+- Never join separate words together.
+- Use complete, grammatically correct sentences.
+- Separate paragraphs with a blank line.
+- Avoid unnecessary trailing spaces.
+- Proofread every field before returning the JSON.
 """
 
     response = client.chat.completions.create(
@@ -134,10 +161,13 @@ IMPORTANT:
     ]
 
     for field in required:
-        if not isinstance(content.get(field), str) or not content[field].strip():
-            raise ValueError(
-                f"Invalid devotional field: {field}"
-            )
+        if not isinstance(content.get(field), str):
+            raise ValueError(f"Invalid devotional field: {field}")
+
+        content[field] = clean_text(content[field])
+
+        if not content[field]:
+            raise ValueError(f"Empty devotional field: {field}")
 
     devotional = Devotional(
         date=devotional_date,
