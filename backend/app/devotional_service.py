@@ -18,7 +18,7 @@ from .models import Devotional
 logger = logging.getLogger(__name__)
 
 def clean_text(value):
-    """Normalize whitespace and clean generated devotional text."""
+    """Normalize devotional text formatting."""
     if not isinstance(value, str):
         return value
 
@@ -27,7 +27,15 @@ def clean_text(value):
     value = value.replace("\u200b", "")
     value = value.replace("\ufeff", "")
 
-    # Normalize spaces and line breaks.
+    # Fix common missing spaces in time expressions.
+    value = re.sub(
+        r"\b(\d+)\s*(minute|minutes|hour|hours)\b",
+        r"\1-\2",
+        value,
+        flags=re.IGNORECASE
+    )
+
+    # Normalize whitespace.
     value = re.sub(r"[ \t]+", " ", value)
     value = re.sub(r" *\n *", "\n", value)
     value = re.sub(r"\n{3,}", "\n\n", value)
