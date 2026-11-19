@@ -267,3 +267,47 @@ def publish_today_automation():
         return jsonify(
             error="Devotional verification or publication failed."
         ), 500
+
+@api.post("/automation/devotional/clean-today")
+def clean_today_devotional():
+    expected_secret = os.getenv("DEVOTIONAL_CRON_SECRET")
+    supplied_secret = request.headers.get("X-Cron-Secret", "")
+
+    if not expected_secret:
+        return jsonify(error="Automation secret is not configured."), 503
+
+    if not secrets.compare_digest(supplied_secret, expected_secret):
+        return jsonify(error="Unauthorized."), 401
+
+    try:
+        from .devotional_service import clean_text
+
+        today = datetime.now(
+            ZoneInfo(os.getenv("TIMEZONE", "Africa/Lagos"))
+        ).date().isoformat()
+
+        devotional = db.session.execute(
+            select(Devotional).where(Devotional.date == today)
+        ).scalar_one_or_none()
+
+        if not devotional:
+            return jsonify(error="Today's devotional was not found."), 404
+
+        for field in ["title", "theme", "reflection", "application", "prayer", "action"]:
+            setattr(
+                devotional,
+                field,
+                clean_text(getattr(devotional, field))
+            )
+
+        db.session.commit()
+
+        return jsonify(
+            message="Today's devotional text has been cleaned.",
+            devotional=devotional.data()
+        ), 200
+
+    except Exception:
+        db.session.rollback()
+        logging.exception("Devotional cleanup failed.")
+        return jsonify(error="Devotional cleanup failed."), 500
