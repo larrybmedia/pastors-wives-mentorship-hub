@@ -239,3 +239,31 @@ def prepare_devotional_automation():
         return jsonify(error="Devotional preparation failed."), 500
 
 
+@api.post("/automation/devotional/publish-today")
+def publish_today_automation():
+
+    expected_secret = os.getenv("DEVOTIONAL_CRON_SECRET")
+    supplied_secret = request.headers.get("X-Cron-Secret", "")
+
+    if not expected_secret:
+        return jsonify(error="Automation secret is not configured."), 503
+
+    if not secrets.compare_digest(supplied_secret, expected_secret):
+        return jsonify(error="Unauthorized."), 401
+
+    try:
+        from .devotional_service import publish_devotional
+
+        devotional = publish_devotional()
+
+        return jsonify(
+            message="Today's devotional has been verified and published.",
+            devotional=devotional.data()
+        ), 200
+
+    except Exception:
+        db.session.rollback()
+        logging.exception("Devotional publication failed.")
+        return jsonify(
+            error="Devotional verification or publication failed."
+        ), 500

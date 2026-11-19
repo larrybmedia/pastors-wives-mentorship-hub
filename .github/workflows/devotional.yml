@@ -1,0 +1,33 @@
+name: Daily Devotional Automation
+
+on:
+  schedule:
+    - cron: "30 22 * * *"
+    - cron: "5 23 * * *"
+
+  workflow_dispatch:
+
+jobs:
+  prepare-tomorrow:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '30 22 * * *'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prepare tomorrow's devotional
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "X-Cron-Secret: ${{ secrets.DEVOTIONAL_CRON_SECRET }}" \
+            https://pastors-wives-mentorship-hub.onrender.com/api/automation/devotional/prepare
+
+  publish-today:
+    if: github.event.schedule == '5 23 * * *'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify and publish today's devotional
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "X-Cron-Secret: ${{ secrets.DEVOTIONAL_CRON_SECRET }}" \
+            https://pastors-wives-mentorship-hub.onrender.com/api/automation/devotional/publish-today

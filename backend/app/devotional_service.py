@@ -2,6 +2,8 @@
 import os
 import json
 import logging
+from urllib.request import Request, urlopen
+from urllib.parse import quote
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
 
@@ -162,10 +164,37 @@ IMPORTANT:
     return devotional
 
 
+def verify_scripture(reference):
+    """Retrieve the exact KJV passage for a Bible reference."""
+
+    url = (
+        "https://bible-api.com/"
+        + quote(reference, safe="")
+        + "?translation=kjv"
+    )
+
+    request = Request(
+        url,
+        headers={"User-Agent": "PastorsWivesMentorshipHub/1.0"}
+    )
+
+    with urlopen(request, timeout=15) as response:
+        result = json.loads(response.read().decode("utf-8"))
+
+    if result.get("translation_name") != "King James Version":
+        raise ValueError("KJV Scripture verification failed.")
+
+    verified_text = (result.get("text") or "").strip()
+    verified_reference = (result.get("reference") or "").strip()
+
+    if not verified_text or not verified_reference:
+        raise ValueError("No verified Scripture text was returned.")
+
+    return verified_reference, verified_text
+
+
 def publish_devotional(target_date=None):
-    """
-    Publish an existing generated devotional.
-    """
+    """Verify Scripture and publish only after successful verification."""
 
     target_date = target_date or nigeria_today()
 
@@ -178,11 +207,18 @@ def publish_devotional(target_date=None):
     if not devotional:
         devotional = generate_devotional(target_date)
 
+    # Fail closed: do not publish if the reference cannot be verified.
+    verified_reference, verified_text = verify_scripture(
+        devotional.reference
+    )
+
+    devotional.reference = verified_reference
+    devotional.verse = verified_text
     devotional.published = True
     db.session.commit()
 
     logger.info(
-        "Published devotional for %s",
+        "Verified KJV Scripture and published devotional for %s",
         target_date.isoformat()
     )
 
