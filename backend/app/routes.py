@@ -5,7 +5,7 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from sqlalchemy import desc
+from sqlalchemy import desc, select
 from . import db
 from .models import User, Devotional, Course, Lesson, Event, MentorshipRequest, PrayerRequest, Post, Article
 
